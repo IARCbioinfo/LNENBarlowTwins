@@ -29,8 +29,8 @@ This model was trained on 259 HE-stained  WSIs of LNEN. The WSIs were cut into 3
 bash Bash/Train/TrainToyDataset.sh 
 ```
 - **Note:** 
-  **- Additional configurations and parameters are described at the beginning of`main.py`.**
-  **- Trained network weights are available on request.**
+  + Additional configurations and parameters are described at the beginning of`main.py`.
+  + Trained network weights are available on request.
 
 ## Testing Pretrained Models
 - Download pretrained weights are available on request and will be soon available online 
