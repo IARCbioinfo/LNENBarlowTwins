@@ -1,22 +1,17 @@
 # Barlow Twins for Lung Neuroendocrine Neoplasms (LNENs): 
-Unsupervised deep learning model trained to extract features from images. The adaptation we propose here is dedicated to learning the features of the tiles making up whole slide images of LNENs. The encoded vectors created by the Barlow twins of tiles sharing common pathological features are assumed to be closer in latent space than less similar tiles.
+Unsupervised deep learning model trained to extract features from images. The adaptation we propose here is dedicated to learning the features of the tiles making up whole slide images of Lung Neuroendocrine Neoplasms (LNENs). The encoded vectors created by the Barlow twins of tiles sharing common pathological features are assumed to be closer in latent space than less similar tiles.
 
 - Original article: J. Zbontar [Barlow Twins](https://proceedings.mlr.press/v139/zbontar21a.html), PMLR 2021.
 - Original code: [https://github.com/facebookresearch/barlowtwins](https://github.com/facebookresearch/barlowtwins)
-- Method used to extract features from WSIs stained with hematoxylin and eosin to distinguish typical from atypical carcinoids in "Assessment of the current and emerging criteria for the histopathological classification of lung neuroendocrine tumours in the lungNENomics project." ESMO Open 2023 (under review)
+- Method used to extract features from WSIs stained with haematoxylin and eosin (HE) to distinguish typical from atypical carcinoids in "Assessment of the current and emerging criteria for the histopathological classification of lung neuroendocrine tumours in the lungNENomics project." ESMO Open 2023 (under review)
 
 ## Installation
-- Clone this repository: tested on Python 3.8
-- Install [PyTorch](http://pytorch.org/): tested on v2.1.2
-- Install [Torchvison](https://pytorch.org/vision/stable/index.html) tested on v0.16.2
-- Install [Timm](https://timm.fast.ai/) tested on v0.6.11
-- Install [cudatoolkit](https://developer.nvidia.com/cuda-toolkit) tested on 11.8.0
-- Install [pytorch-cuda](https://pytorch.org/get-started/locally/) tested on 11.8
-- Install [scikit-image](https://scikit-image.org/) tested on 0.19.3
-- Install [scikit-learn](https://scikit-learn.org/stable/) tested on 1.3.0
-- Install [pillow](https://pillow.readthedocs.io/en/stable/)  tested on 10.0.1
-- Install any version of pandas, numpy, matplotlib
-- For simplicity [FrEIA Flows](https://github.com/VLL-HD/FrEIA): tested on [the recent branch](https://github.com/VLL-HD/FrEIA/tree/4e0c6ab42b26ec6e41b1ee2abb1a8b6562752b00) has already be cloned in this repository
+- Clone this repository: tested on Python 3.9
+- Install [PyTorch](http://pytorch.org/): tested on v1.9.0
+- Install [Torchvison](https://pytorch.org/vision/stable/index.html) tested on v0.10.0
+- Install [cudatoolkit](https://developer.nvidia.com/cuda-toolkit) tested on 10.2.0
+- Install [pillow](https://pillow.readthedocs.io/en/stable/)  tested on 9.3.0
+- Install any version of numpy
 - Other dependencies in environment.yml
 
 Install all packages with this command:
@@ -24,37 +19,8 @@ Install all packages with this command:
 $ conda env create -f environment.yml
 ```
 
-## Datasets
-This method has been tested for 3 types of histological images:
-+ Haematoxylin and Eosin (HE) | Haematoxylin, Eosin Saffron (HES) stained WSI:
-    + Number of tumor tiles (for train and test) = 12,991 (69 patients)
-    + Number of non-tumor tiles (for test) = 4,815 (33 patients)
-+ Ki-67 immunohistochemical stained WSI:
-    + Number of tumor tiles (for train and test) = 19,053 (77 patients)
-    + Number of non-tumor tiles (for test) = 10,259 (40 patients)
-+ Phosphohistone histone H3 (PHH3)-stained WSIs can be segmented using Ki-67 tumor tiles as a training set.
-
-**These two dataset are available on request from mathiane[at]iarc[dot]who[dot]int and will soon be available online.**
-
-## Code Organization
-- ./custom_datasets - contains dataloaders for TumorNormalDataset :
-    - The dataloader is based on a file listing the path to the tiles.
-    -  Examples: `./Datasets/ToyTrainingSetKi67Tumor.txt` and `./Datasets/ToyTestSetKi67Tumor.txt`
-
-- ./custom_models 
-    - contains pretrained `resnet` feature extractors:
-        - For the tumor segmentations tasks we used a wide-Resnet 50 (see: `resnet.py` line 352)
-        -  *Note: additional features extrators can be found in the original [CFlow AD repository](https://github.com/gudovskiy/cflow-ad)*
-    - the `utils` contains functions to save and load the checkpoint
-
-
-- ./FrEIA - clone from [https://github.com/VLL-HD/FrEIA](https://github.com/VLL-HD/FrEIA) repository.
-
-- models - Build encoder and decoder
-    - The encoder is based on a pretrained resnet (see: `custom_models/resnet.py`)
-    - The decoder is based on FrEIA modules
-
-- main: Main script to train and test the model.
+## Dataset
+This model was trained on 259 HE-stained  WSIs of LNEN. The WSIs were cut into 384x384 pixel tiles and the colors were normalized using Vahadane's color deconvolution method. Pre-processing scripts are available in  [https://github.com/IARCbioinfo/WSIPreprocessing](https://github.com/IARCbioinfo/WSIPreprocessing). The ~4.1M pre-processed tiles aer available on request from mathiane@iarc.who.int.
 
 ## Training Models
 - An example of the configurations used to segment HE/HES, Ki-67 and PHH3 WSI is available in `Run/Train/TumorNormal/TrainToyDataKi67.sh`
