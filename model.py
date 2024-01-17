@@ -11,14 +11,6 @@ class BarlowTwins(nn.Module):
         super().__init__()
         self.args = args
         self.backbone = torchvision.models.wide_resnet50_2(zero_init_residual=True)
-        # Imagenet
-#        if not args.evaluate:
-#            self.backbone.load_state_dict(torch.load(
-#               '/gpfsscratch/rech/uli/ueu39kt/TCGAFilesLists/wide_resnet50_2-95faca4d.pth'), strict=False)
-#        else:
-#            ckpt = torch.load(args.checkpoint_evaluation ,
-#                          map_location='cpu')
-#            self.backbone.load_state_dict(ckpt['model'], strict=False)
         self.backbone.fc = nn.Identity()
 
         # projector
@@ -49,7 +41,7 @@ class BarlowTwins(nn.Module):
         on_diag = torch.diagonal(c).add_(-1).pow_(2).sum()
         off_diag = off_diagonal(c).pow_(2).sum()
         loss = on_diag + self.args.lambd * off_diag
-        if not self.args.parallel:
+        if not self.args.evaluate:
             return loss
         else:
             return z1, z2, loss

@@ -156,8 +156,34 @@ def train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_
         # save final model
         torch.save(model.module.backbone.state_dict(),
                    args.checkpoint_dir / 'wide_resnet50_final.pth')
+        
+def eval_loop(args, model, loader, optimizer, gpu, stats_file):
+    if args.parallel:
+        scaler = torch.cuda.amp.GradScaler()
+    model.eval()
+    with torch.no_grad():
+        for step, (y1, y2, path_to_imgs) in enumerate(loader):
+            if step % 100 == 0:
+                if args.parallel:
+                    if idr_torch_rank == 0:
+                        print('step ', step, 
+                        '\n progression ' , (step ) /  len(loader))
+                else:
+                    print('step ', step, 
+                        '\n progression ' , (step ) /  len(loader))
+            y1 = y1.cuda(gpu, non_blocking=True)
+            y2 = y2.cuda(gpu, non_blocking=True)
+            print(y1.shape)
+            print(y2.shape)
+            z1, z2, loss = model.forward(y1, y2)
+           
+            if args.parallel:
+                if idr_torch_rank == 0:
+                    write_projectors(args, z1, path_to_imgs)
+            else:
+                write_projectors(args, z1, path_to_imgs)
     
-def main():
+def training_mode():
     
     args = parser.parse_args()
     #################################
@@ -244,41 +270,48 @@ def main():
     else:
         loader =  torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     
-
-    train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file)
-   
+    if not args.parallel:
+        train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file)
+    else:
+        train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file)
         
-def evaluate():
-    args = parser.parse_args()
-    idr_torch_rank = int(os.environ['SLURM_PROCID'])
-    local_rank = int(os.environ['SLURM_LOCALID'])
-    idr_world_size = int(os.environ['SLURM_NTASKS'])
-    cpus_per_task = int(os.environ['SLURM_CPUS_PER_TASK'])
-    torch.backends.cudnn.enabled = False
-
-    # get node list from slurm
-    hostnames = hostlist.expand_hostlist(os.environ['SLURM_JOB_NODELIST'])
-    gpu_ids = os.environ['SLURM_STEP_GPUS'].split(",")
-    # define MASTER_ADD & MASTER_PORT
-    os.environ['MASTER_ADDR'] = hostnames[0]
-    os.environ['MASTER_PORT'] = str(12456 + int(min(gpu_ids))); #Avoid port conflits in the node #str(12345 + gpu_ids)
+        
+def evaluation_mode():
+    args = parser.parse_args() 
+    if args.parallel:
+        idr_torch_rank = int(os.environ['SLURM_PROCID'])
+        local_rank = int(os.environ['SLURM_LOCALID'])
+        idr_world_size = int(os.environ['SLURM_NTASKS'])
+        cpus_per_task = int(os.environ['SLURM_CPUS_PER_TASK'])
+        torch.backends.cudnn.enabled = False
+        # get node list from slurm
+        hostnames = hostlist.expand_hostlist(os.environ['SLURM_JOB_NODELIST'])
+        gpu_ids = os.environ['SLURM_STEP_GPUS'].split(",")
+        # define MASTER_ADD & MASTER_PORT
+        os.environ['MASTER_ADDR'] = hostnames[0]
+        os.environ['MASTER_PORT'] = str(12456 + int(min(gpu_ids))); #Avoid port conflits in the node #str(12345 + gpu_ids)
+        
+        dist.init_process_group(backend='nccl', 
+                                init_method='env://', 
+                                world_size=idr_world_size, 
+                                rank=idr_torch_rank)
+        if idr_torch_rank == 0:
+            args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+            stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
+            print(' '.join(sys.argv))
+            print(' '.join(sys.argv), file=stats_file)
     
-    dist.init_process_group(backend='nccl', 
-                            init_method='env://', 
-                            world_size=idr_world_size, 
-                            rank=idr_torch_rank)
-    if idr_torch_rank == 0:
-        args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        stats_file = open(args.checkpoint_dir / 'stats.txt', 'a', buffering=1)
+        torch.cuda.set_device(local_rank)    
+        torch.backends.cudnn.benchmark = True
+    else:
+        stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
         print(' '.join(sys.argv))
         print(' '.join(sys.argv), file=stats_file)
     
-    torch.cuda.set_device(local_rank)    
-    torch.backends.cudnn.benchmark = True
     gpu = torch.device("cuda")
-
     model = BarlowTwins(args).cuda(gpu)
-    model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    if args.parallel:
+        model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     param_weights = []
     param_biases = []
     for param in model.parameters():
@@ -290,45 +323,27 @@ def evaluate():
     optimizer = LARS(parameters, lr=0, weight_decay=args.weight_decay,
                      weight_decay_filter=True,
                      lars_adaptation_filter=True)
-    print("args.checkpoint_evaluation  ", args.checkpoint_evaluation)
     ckpt = torch.load(args.checkpoint_evaluation ,
-                          map_location='cpu')
-    print("**********************************************************")
-    print("**********************************************************")
-    print("automatically resume from checkpoint if it exists")
-    print("**********************************************************")
-    print("**********************************************************")
-    
+                          map_location='cpu')   
     optimizer.load_state_dict(ckpt['optimizer'])
-    
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
+    if args.parallel:
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
     model.load_state_dict(ckpt['model'])
-    
     dataset = LNENDataset(args)
-    print('Load LNEN data')
-    sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-    assert args.batch_size % idr_world_size == 0
-    per_device_batch_size = args.batch_size // idr_world_size
-    loader = torch.utils.data.DataLoader(
-        dataset, batch_size=per_device_batch_size, num_workers=0,
-        pin_memory=True, sampler=sampler)
+    if args.parallel:
+        sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        assert args.batch_size % idr_world_size == 0
+        per_device_batch_size = args.batch_size // idr_world_size
+        loader = torch.utils.data.DataLoader(
+            dataset, batch_size=per_device_batch_size, num_workers=0,
+            pin_memory=True, sampler=sampler)
+    else:
+        loader =  torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
+    eval_loop(args, model, loader, optimizer, gpu, stats_file)
 
-    print('Len loader ', len(loader))
-    scaler = torch.cuda.amp.GradScaler()
-    model.eval()
-    with torch.no_grad():
-        for step, (y1, y2, path_to_imgs) in enumerate(loader):
-            if step % 100 == 0:
-                if idr_torch_rank == 0:
-                    print('step ', step, 
-                      '\n progression ' , (step ) /  len(loader))
-            y1 = y1.cuda(gpu, non_blocking=True)
-            y2 = y2.cuda(gpu, non_blocking=True)
-            z1, z2, loss = model.forward(y1, y2)
-           
-            if idr_torch_rank == 0:
-                write_projectors(args, z1, path_to_imgs)
-            
+############################################################################################
+# HELPER FONCTIONS   
+############################################################################################         
 def write_projectors(args, z1, path_to_imgs):
     os.makedirs(os.path.join(args.projector_dir), exist_ok= True)   
     for i in range(len(path_to_imgs)):
@@ -339,7 +354,6 @@ def write_projectors(args, z1, path_to_imgs):
         np.save(os.path.join(args.projector_dir,tne_id,  img_name.split('.jpg')[0]), 
                 z1_c)
         
-
 
 def adjust_learning_rate(args, optimizer, loader, step):
     max_steps = args.epochs * len(loader)
@@ -369,6 +383,6 @@ def handle_sigterm(signum, frame):
 if __name__ == '__main__':
     args = parser.parse_args()
     if args.evaluate:
-        evaluate()
+        evaluation_mode()
     else:
-        main()
+        training_mode()
