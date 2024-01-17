@@ -1,5 +1,5 @@
 # Barlow Twins for Lung Neuroendocrine Neoplasms: 
-Unsupervised deep learning model trained to extract features from images. The adaptation we propose here is dedicated to learning the features of the tiles making up whole slide images of Lung Neuroendocrine Neoplasms (LNENs). The encoded vectors created by the Barlow twins of tiles sharing common pathological features are assumed to be closer in latent space than less similar tiles.
+Unsupervised deep learning model trained to extract features from images. The adaptation we propose here is dedicated to learning the features of the tiles making up whole slide images of Lung Neuroendocrine Neoplasms (LNENs). The encoded vectors created by the Barlow twins of tiles sharing common pathological features are assumed to be closer in latent space than less similar tiles, as demonstrated for the first time by [A. Quiros and colleagues](https://arxiv.org/abs/2205.01931).
 
 - Original article: J. Zbontar [Barlow Twins](https://proceedings.mlr.press/v139/zbontar21a.html), PMLR 2021.
 - Original code: [https://github.com/facebookresearch/barlowtwins](https://github.com/facebookresearch/barlowtwins)
