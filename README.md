@@ -47,3 +47,4 @@ bash Bash/Test/TumorNormal/TestToyModel.sh
 + :construction: Check parallel training 
 + :construction: Check parallel test
 + :construction: Add parallel config used in OpenESMO
++ :construction: Add Img Presentation
