@@ -22,14 +22,15 @@ $ conda env create -f environment.yml
 ## Dataset
 This model was trained on 259 HE-stained  WSIs of LNEN. The WSIs were cut into 384x384 pixel tiles and the colors were normalized using Vahadane's color deconvolution method. Pre-processing scripts are available in  [https://github.com/IARCbioinfo/WSIPreprocessing](https://github.com/IARCbioinfo/WSIPreprocessing). The ~4.1M pre-processed tiles aer available on request from mathiane@iarc.who.int.
 
-## Training Models
-- An example of the configurations used to segment HE/HES, Ki-67 and PHH3 WSI is available in `Run/Train/TumorNormal/TrainToyDataKi67.sh`
-- *Configs can be viwed in `config.py`*
+## Training Model
+- An example of the configurations used to trained Barlow Twins for LNEN WSIs is available in `Bash/Train/TumorNormal/TrainToyDataset.sh`
 - The commands below are used to train the model based on the toy data set:
 ```
-bash Run/Train/TumorNormal/TrainToyDataKi67.sh
+bash Bash/Train/TrainToyDataset.sh 
 ```
-- **Warnings: Network weights will be saved for all epochs in `config.weights-dir/config.class-name/meta-epoch/ModelName_ClassName_MetaEpoch_SubEpoch.pt`. Each checkpoint creates is associated 903MB file.**
+- **Note:** 
+  **- Additional configurations and parameters are described at the beginning of`main.py`.**
+  **- Trained network weights are available on request.**
 
 ## Testing Pretrained Models
 - Download pretrained weights are available on request and will be soon available online 
