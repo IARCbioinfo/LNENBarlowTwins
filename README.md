@@ -25,10 +25,11 @@ This model was trained on 259 HE-stained  WSIs of LNEN. The WSIs were cut into 3
 
 ## Training Model
 - An example of the configurations used to trained Barlow Twins for LNEN WSIs is available in `Bash/Train/TumorNormal/TrainToyDataset.sh`
-- The commands below are used to train the model based on the toy data set:
+- The commands below are used to train the model based on the toy data set for a tumor segmentation task running on a single RTX-5000:
 ```
 bash Bash/Train/TrainToyDataset.sh 
 ```
+- The configuration used in our ESMO Open article, i.e. to run the model in parallel on 8 V100s for a training run with a large batch size of 896 HE tiles, is given in `Bash/Train/TrainLNENParallel.sh` 
 - **Note:** 
   + Additional configurations and parameters are described at the beginning of `main.py`.
   + Trained network weights are available on request.
@@ -45,7 +46,6 @@ bash Bash/Test/TumorNormal/TestToyModel.sh
 
 ## TO DO LIST
 
-+ :construction: Check parallel training 
 + :construction: Check parallel test
 + :construction: Add parallel config used in OpenESMO
 + :construction: Add Img Presentation

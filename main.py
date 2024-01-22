@@ -26,6 +26,10 @@ import numpy as np
 from dataset import LNENDataset
 from model import BarlowTwins
 from lars_opimizers import LARS
+try:
+    import hostlist
+except:
+    print("hostlist not available parallel computing not available")
 ##########################
 #  TRAIN
 ##########################
@@ -113,7 +117,7 @@ def train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file):
     torch.save(model.backbone.state_dict(),
                 args.checkpoint_dir / 'wide_resnet50_final.pth')
 
-def train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file):
+def train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file, sampler, idr_torch_rank):
     start_time = time.time()
     scaler = torch.cuda.amp.GradScaler()
     for epoch in range(start_epoch, args.epochs):
@@ -198,7 +202,9 @@ def training_mode():
         idr_world_size = int(os.environ['SLURM_NTASKS'])
         cpus_per_task = int(os.environ['SLURM_CPUS_PER_TASK'])
         torch.backends.cudnn.enabled = False
-
+        print("*****************************************************************************")
+        print("****************************PARALLEL SET UP  *****************************")
+        print("*****************************************************************************")
         # get node list from slurm
         hostnames = hostlist.expand_hostlist(os.environ['SLURM_JOB_NODELIST'])
         gpu_ids = os.environ['SLURM_STEP_GPUS'].split(",")
@@ -213,9 +219,6 @@ def training_mode():
     
         if idr_torch_rank == 0:
             args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-            stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
-            print(' '.join(sys.argv))
-            print(' '.join(sys.argv), file=stats_file)
 
         torch.cuda.set_device(local_rank)
         
@@ -273,7 +276,10 @@ def training_mode():
     if not args.parallel:
         train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file)
     else:
-        train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file)
+        stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
+        print(' '.join(sys.argv))
+        print(' '.join(sys.argv), file=stats_file)
+        train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file, sampler, idr_torch_rank)
         
         
 def evaluation_mode():
