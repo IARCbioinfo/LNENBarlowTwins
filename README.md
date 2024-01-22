@@ -4,7 +4,7 @@ Unsupervised deep learning model trained to extract features from images. The ad
 - Original article: J. Zbontar [Barlow Twins](https://proceedings.mlr.press/v139/zbontar21a.html), PMLR 2021.
 - Original code: [https://github.com/facebookresearch/barlowtwins](https://github.com/facebookresearch/barlowtwins)
 - Method used to extract features from WSIs stained with haematoxylin and eosin (HE) to distinguish typical from atypical carcinoids in "Assessment of the current and emerging criteria for the histopathological classification of lung neuroendocrine tumours in the lungNENomics project." ESMO Open 2023 (under review)
-
+![PresentationImg](ImgPresentationBT.png)
 ## Installation
 - Clone this repository: tested on Python 3.9
 - Install [PyTorch](http://pytorch.org/): tested on v1.9.0
