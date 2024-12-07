@@ -99,13 +99,15 @@ def train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file):
                 print(json.dumps(stats))
                 print(json.dumps(stats), file=stats_file)
             if  step % args.save_freq == 0:
+                print("save intermediate model")
                 # save checkpoint
                 state = dict(epoch=epoch + 1, model=model.state_dict(),
                              optimizer=optimizer.state_dict())
                 torch.save(state, args.checkpoint_dir / f'checkpoint_{epoch}_{step}.pth')
                 torch.save(model.backbone.state_dict(),
                        args.checkpoint_dir / f'wide_resnet50_{epoch}_{step}.pth')
-        
+                print(json.dumps(stats))
+                print(json.dumps(stats), file=stats_file)
         # save checkpoint
         state = dict(epoch=epoch + 1, model=model.state_dict(),
                         optimizer=optimizer.state_dict())
@@ -165,6 +167,7 @@ def eval_loop(args, model, loader, optimizer, gpu, stats_file):
     if args.parallel:
         scaler = torch.cuda.amp.GradScaler()
     model.eval()
+    feature_extractor = FeatureExtractor(model)
     with torch.no_grad():
         for step, (y1, y2, path_to_imgs) in enumerate(loader):
             if step % 100 == 0:
@@ -177,15 +180,19 @@ def eval_loop(args, model, loader, optimizer, gpu, stats_file):
                         '\n progression ' , (step ) /  len(loader))
             y1 = y1.cuda(gpu, non_blocking=True)
             y2 = y2.cuda(gpu, non_blocking=True)
-            print(y1.shape)
-            print(y2.shape)
             z1, z2, loss = model.forward(y1, y2)
-           
+            features = feature_extractor(y1)
+            #print(features.size())
+            # if args.parallel:
+            #     if idr_torch_rank == 0:
+            #         write_projectors(args, z1, path_to_imgs)
+            # else:
+            #     write_projectors(args, z1, path_to_imgs)
             if args.parallel:
                 if idr_torch_rank == 0:
-                    write_projectors(args, z1, path_to_imgs)
+                    write_projectors(args, features, path_to_imgs)
             else:
-                write_projectors(args, z1, path_to_imgs)
+                write_projectors(args, features, path_to_imgs)
     
 def training_mode():
     
@@ -316,6 +323,8 @@ def evaluation_mode():
     
     gpu = torch.device("cuda")
     model = BarlowTwins(args).cuda(gpu)
+    ## Add for Roformer proj - compilation GN0
+    print(model.__dict__)
     if args.parallel:
         model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
     param_weights = []
@@ -334,7 +343,18 @@ def evaluation_mode():
     optimizer.load_state_dict(ckpt['optimizer'])
     if args.parallel:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[gpu])
-    model.load_state_dict(ckpt['model'])
+    
+    ## Added for Roformer compiling
+    new_state_dict = {}
+    for key in ckpt['model'].keys():
+        print(key)
+        new_key = key.split("module.")[1]
+        new_state_dict[new_key] = ckpt['model'][key]
+    #model.load_state_dict(ckpt['model'])
+    model.load_state_dict(new_state_dict)
+    ## Added for Roformer compiling
+
+
     dataset = LNENDataset(args)
     if args.parallel:
         sampler = torch.utils.data.distributed.DistributedSampler(dataset)
@@ -347,6 +367,21 @@ def evaluation_mode():
         loader =  torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     eval_loop(args, model, loader, optimizer, gpu, stats_file)
 
+
+
+class FeatureExtractor(nn.Module):
+    def __init__(self, model):
+        super(FeatureExtractor, self).__init__()
+        # Prendre toutes les couches sauf la dernière (la couche de classification)
+        self.features = nn.Sequential(*list(model.backbone.children())[:-1])
+
+    def forward(self, x):
+        return self.features(x)
+
+
+def hook(module, input, output):
+    global last_layer_features
+    last_layer_features = output
 ############################################################################################
 # HELPER FONCTIONS   
 ############################################################################################         
@@ -388,6 +423,7 @@ def handle_sigterm(signum, frame):
 
 if __name__ == '__main__':
     args = parser.parse_args()
+    print("GPU available: ",torch.cuda.is_available())
     if args.evaluate:
         evaluation_mode()
     else:

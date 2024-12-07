@@ -12,6 +12,7 @@ class BarlowTwins(nn.Module):
         self.args = args
         self.backbone = torchvision.models.wide_resnet50_2(zero_init_residual=True)
         self.backbone.fc = nn.Identity()
+        ## Added with RoFormerExp
 
         # projector
         sizes = [2048] + list(map(int, args.projector.split('-')))
@@ -46,6 +47,7 @@ class BarlowTwins(nn.Module):
         else:
             return z1, z2, loss
         
+
 def off_diagonal(x):
     # return a flattened view of the off-diagonal elements of a square matrix
     n, m = x.shape

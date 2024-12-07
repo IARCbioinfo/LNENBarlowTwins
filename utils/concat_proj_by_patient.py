@@ -28,7 +28,7 @@ ele_in_c_df = 0
 tot_nb_ele = 0
 list_tne_id = []
 duplicated_tne = []
-tneforlder2ignore = ["TNE0387-HPS", "TNE1007-HES", "TNE1007-HES.svs", "TNE0308-HPS", "TNE0868", "TNE1344", "TNE1344-HPS", "TNE0181-HPS", "TNE0591-HPS", "TNE0952.svs" ]
+tneforlder2ignore = ["TNE0387-HPS", "TNE1007-HES", "TNE1007-HES.svs", "TNE0308-HPS", "TNE0868", "TNE1344", "TNE1344-HPS", "TNE0181-HPS", "TNE0591-HPS", "TNE0952.svs" , "concat_proj_by_patient"]
 for tnefolder in os.listdir(root_enc):
    if tnefolder not in tneforlder2ignore:
         tne_folder_count += 1
@@ -48,9 +48,29 @@ for tnefolder in os.listdir(root_enc):
                 c_df = pd.DataFrame(encoded_v) 
                 c_df = c_df.T
                 c_df['img_id']  = ele[:-4]
-                c_df['tne_id']  = tnefolder[:7]
+                c_df['sample_id']  = tnefolder[:7]
                 encoded_df = encoded_df.append(c_df)
-            print(os.path.join(args.concat_dir, f"barlowTwins_trainset_z128_{tnefolder[:7]}.csv"))
-            encoded_df.to_csv(os.path.join(args.concat_dir, f"barlowTwins_trainset_z128_{tnefolder[:7]}.csv"), index = False)
+            print(os.path.join(args.concat_dir, f"barlowTwins_largeproj_{tnefolder[:7]}.csv"))
+            encoded_df.to_csv(os.path.join(args.concat_dir, f"barlowTwins_largeproj_{tnefolder[:7]}.csv"), index = False)
             encoded_df = pd.DataFrame()
             count += 1
+
+        elif tnefolder.find('TNE') == -1 and tnefolder.find(args.patient_id) != -1: # LCNEC
+            print("sample  ", tnefolder)
+            ele_in_tne_folder  = 0
+            for ele in os.listdir(os.path.join(root_enc, tnefolder)):
+                ele_in_tne_folder += 1
+                ele_in_c_df +=1 
+                tot_nb_ele +=1
+                encoded_v = np.load(os.path.join(root_enc, tnefolder, ele))
+                encoded_v = np.transpose(encoded_v.flatten())
+                c_df = pd.DataFrame(encoded_v) 
+                c_df = c_df.T
+                c_df['img_id']  = ele[:-4]
+                c_df['sample_id']  = tnefolder
+                encoded_df = encoded_df.append(c_df)
+            print(os.path.join(args.concat_dir, f"barlowTwins_largeproj_{tnefolder}.csv"))
+            encoded_df.to_csv(os.path.join(args.concat_dir, f"barlowTwins_largeproj_{tnefolder}.csv"), index = False)
+            encoded_df = pd.DataFrame()
+            count += 1
+
