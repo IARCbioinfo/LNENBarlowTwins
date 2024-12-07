@@ -96,8 +96,7 @@ def train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file):
                                 lr_biases=optimizer.param_groups[1]['lr'],
                                 loss=loss.item(),
                                 time=int(time.time() - start_time))
-                print(json.dumps(stats))
-                print(json.dumps(stats), file=stats_file)
+
             if  step % args.save_freq == 0:
                 print("save intermediate model")
                 # save checkpoint
@@ -106,8 +105,7 @@ def train_loop(args, model, start_epoch, loader, optimizer, gpu, stats_file):
                 torch.save(state, args.checkpoint_dir / f'checkpoint_{epoch}_{step}.pth')
                 torch.save(model.backbone.state_dict(),
                        args.checkpoint_dir / f'wide_resnet50_{epoch}_{step}.pth')
-                print(json.dumps(stats))
-                print(json.dumps(stats), file=stats_file)
+               
         # save checkpoint
         state = dict(epoch=epoch + 1, model=model.state_dict(),
                         optimizer=optimizer.state_dict())
@@ -142,8 +140,7 @@ def train_parallel_loop(args, model, start_epoch, loader, optimizer, gpu, stats_
                                  lr_biases=optimizer.param_groups[1]['lr'],
                                  loss=loss.item(),
                                  time=int(time.time() - start_time))
-                    print(json.dumps(stats))
-                    print(json.dumps(stats), file=stats_file)
+
             if idr_torch_rank == 0 and step % args.save_freq == 0:
                 # save checkpoint
                 state = dict(epoch=epoch + 1, model=model.state_dict(),
@@ -234,9 +231,7 @@ def training_mode():
     else:
         args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
-        print(' '.join(sys.argv))
-        print(' '.join(sys.argv), file=stats_file)
-    
+
     gpu = torch.device("cuda")
     model = BarlowTwins(args).cuda(gpu)
     if args.parallel:
@@ -311,15 +306,13 @@ def evaluation_mode():
         if idr_torch_rank == 0:
             args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
             stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
-            print(' '.join(sys.argv))
-            print(' '.join(sys.argv), file=stats_file)
+
     
         torch.cuda.set_device(local_rank)    
         torch.backends.cudnn.benchmark = True
     else:
         stats_file = open(args.checkpoint_dir / 'stats_eval.txt', 'a', buffering=1)
-        print(' '.join(sys.argv))
-        print(' '.join(sys.argv), file=stats_file)
+
     
     gpu = torch.device("cuda")
     model = BarlowTwins(args).cuda(gpu)
